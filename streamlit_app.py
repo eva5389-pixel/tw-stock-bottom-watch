@@ -65,6 +65,8 @@ with st.container(border=True):
         st.metric('當日外資買賣超（億元）', '未取得' if pd.isna(last.foreign_net) else f'{last.foreign_net:+,.2f}', border=True)
 if result['invalid']:
     st.warning('指數月份資料有缺漏，或距查詢截止日超過7天。下列僅供檢查資料，不形成止跌結論。')
+from putcall import render as render_putcall
+render_putcall(bundle, result)
 st.subheader('逐項判斷依據')
 st.dataframe(pd.DataFrame(result['signals']), hide_index=True, width='stretch')
 st.write('**較高低點後突破：** '+('成立' if result['pattern'] else '尚未成立'))
@@ -110,6 +112,6 @@ with st.expander('規則、限制與判斷失效條件'):
 with st.expander('資料來源與擷取狀態'):
     st.dataframe(pd.DataFrame(bundle['audit']), hide_index=True, column_config={'來源':st.column_config.LinkColumn()})
     for error in bundle['errors']: st.warning(error)
-    st.caption('所有資料來自證交所；資料可能延遲、更正或暫時限制存取。來源失敗時請稍後重試。')
+    st.caption('現貨資料來自證交所，選擇權P/C來自期交所；資料可能延遲、更正或暫時限制存取。來源失敗時請稍後重試。')
 st.download_button('下載觀察報告（Markdown）', report(bundle,result), file_name=f'taiwan-bottom-watch-{last.date:%Y%m%d}.md', mime='text/markdown')
 st.download_button('下載行情與籌碼（CSV）', df.to_csv(index=False).encode('utf-8-sig'), file_name=f'taiwan-bottom-watch-{last.date:%Y%m%d}.csv', mime='text/csv')

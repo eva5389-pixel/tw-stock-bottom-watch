@@ -77,6 +77,8 @@ def report(bundle, result):
              f"前20交易日低點：{result['support']:,.2f}",
              f"較高低點後突破：{'成立' if result['pattern'] else '未成立'}",'']
     for row in result['signals']: lines.append(f"- {row['項目']}：{row['狀態']}。{row['依據']}")
+    from putcall import assessment, COLUMNS
+    lines += ['', '## 臺指選擇權Put／Call交叉判讀', assessment(bundle.get('putcall', pd.DataFrame(columns=COLUMNS)), result), 'P/C為賣權÷買權×100%；無法區分買賣方動機，結算轉倉會影響比率。本項不計入六項分數，也不是單獨止跌訊號。']
     lines += ['', '僅分析上市加權指數與上市股票；不代表上櫃或個股。規則尚未回測，非買賣建議或落底保證。',
               '融資餘額無法推算全市場整戶維持率或集體斷頭價；未以期貨保證金替代融資資料。',
               '盤後日資料；無即時報價。官方可能更正歷史資料，重新查詢結果可能變動。', '', '## 資料來源']

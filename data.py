@@ -132,6 +132,17 @@ def load_market(asof):
                 values = request(kind, day)
                 if values:
                     for key, value in values.items(): df.loc[idx,key] = value
-    return {'data':df, 'audit':audit, 'errors':errors, 'requested':str(asof.date()),
+    from putcall import load as load_putcall, API
+    pc = pd.DataFrame()
+    record = {'資料':'臺指選擇權Put/Call比','查詢日期':str(asof.date()),'來源':API,'狀態':'成功','回傳日期':''}
+    try:
+        pc = load_putcall(asof)
+        if pc.empty: raise ValueError('截止日前無資料')
+        record['回傳日期'] = str(pc.date.iloc[-1].date())
+    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+        record['狀態'] = '未取得／格式不符'
+        errors.append(f'Put/Call比：{type(exc).__name__}，未納入判讀。')
+    audit.append(record)
+    return {'data':df, 'putcall':pc, 'audit':audit, 'errors':errors, 'requested':str(asof.date()),
             'fetched_at':datetime.now(ZoneInfo('Asia/Taipei')).isoformat(timespec='seconds'),
             'price_complete':not any(x['資料']=='加權指數' and x['狀態']!='成功' for x in audit)}
