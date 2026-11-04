@@ -61,12 +61,31 @@ if result['invalid']:
     st.warning('指數月份資料有缺漏，或距查詢截止日超過7天。下列僅供檢查資料，不形成止跌結論。')
 st.subheader('逐項判斷依據')
 st.dataframe(pd.DataFrame(result['signals']), hide_index=True, width='stretch')
-st.write('**較高低點後突破：**'+('成立' if result['pattern'] else '尚未成立'))
+st.write('**較高低點後突破：** '+('成立' if result['pattern'] else '尚未成立'))
 if result['neckline'] is not None:
     st.caption(f"最近兩個確認波段低點間的高點：{result['neckline']:,.2f}；第二低點：{result['pivot_support']:,.2f}。線位不是保證支撐。")
 st.subheader('價格與成交金額')
-st.line_chart(df.set_index('date')[['close','MA5','MA20']].rename(columns={'close':'加權收盤','MA5':'5日均線','MA20':'20日均線'}))
-st.bar_chart((df.set_index('date')[['turnover']]/1e8).rename(columns={'turnover':'成交金額（億元）'}))
+chart_data = df[['date','close','MA5','MA20']].melt('date', var_name='series', value_name='value').dropna()
+chart_data['series'] = chart_data['series'].map({'close':'加權收盤','MA5':'5日均線','MA20':'20日均線'})
+st.vega_lite_chart(chart_data, {
+    'mark': 'line', 'height': 330,
+    'encoding': {
+        'x': {'field':'date','type':'temporal','title':'日期'},
+        'y': {'field':'value','type':'quantitative','title':'指數','scale':{'zero':False}},
+        'color': {'field':'series','type':'nominal','title':'指標'},
+        'tooltip': [{'field':'date','type':'temporal','title':'日期'},{'field':'series','type':'nominal','title':'指標'},{'field':'value','type':'quantitative','title':'點數','format':',.2f'}]
+    }
+})
+turnover_data = df[['date','turnover']].copy()
+turnover_data['turnover'] /= 1e8
+st.vega_lite_chart(turnover_data, {
+    'mark': 'bar', 'height': 220,
+    'encoding': {
+        'x': {'field':'date','type':'temporal','title':'日期'},
+        'y': {'field':'turnover','type':'quantitative','title':'成交金額（億元）'},
+        'tooltip': [{'field':'date','type':'temporal','title':'日期'},{'field':'turnover','type':'quantitative','title':'億元','format':',.2f'}]
+    }
+})
 st.subheader('最近六個交易日籌碼')
 recent = df.tail(6).copy()
 recent['上漲比率'] = recent.advances / (recent.advances+recent.declines+recent.unchanged)
