@@ -19,7 +19,7 @@ today = datetime.now(ZoneInfo('Asia/Taipei')).date()
 with st.form('query'):
     selected_text = st.text_input('觀察截止日期（YYYY-MM-DD）', value=today.isoformat())
     st.caption('可查當日已公布的盤後資料，非盤中即時判斷。融資等未公布時會標示資料不足；休市日採最近交易日。首次載入約30–90秒。')
-    refresh = st.checkbox('重新向證交所取得資料（不使用五分鐘快取）')
+    refresh = st.checkbox('重新向證交所與期交所取得資料（不使用五分鐘快取）')
     submit = st.form_submit_button('更新止跌觀察', type='primary')
 try:
     selected = datetime.strptime(selected_text, '%Y-%m-%d').date()

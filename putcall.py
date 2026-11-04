@@ -22,14 +22,42 @@ def parse(payload, asof):
     if df.date.duplicated().any(): raise ValueError('P/C日期重複')
     return df
 
+def parse_page(html, asof):
+    import re
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, 'html.parser')
+    payload = []
+    for tr in soup.select('tr'):
+        cells = [c.get_text(' ', strip=True) for c in tr.find_all('td', recursive=False)]
+        if len(cells) != 7 or not re.fullmatch(r'\d{4}/\d{1,2}/\d{1,2}', cells[0]):
+            continue
+        date = pd.to_datetime(cells[0]).strftime('%Y%m%d')
+        keys = ['PutVolume','CallVolume','PutCallVolumeRatio%','PutOI','CallOI','PutCallOIRatio%']
+        payload.append(dict(Date=date, **dict(zip(keys,cells[1:]))))
+    if not payload: raise ValueError('官方網頁未取得P/C資料表')
+    return parse(payload, asof)
+
 def load(asof):
-    r=requests.get(API,timeout=(8,20)); r.raise_for_status()
-    return parse(r.json(),asof)
+    frames, notes = [], []
+    for url, parser in [(API, lambda r: parse(r.json(),asof)), (PAGE, lambda r: parse_page(r.text,asof))]:
+        try:
+            r=requests.get(url,timeout=(8,20)); r.raise_for_status()
+            frame=parser(r)
+            if not frame.empty:
+                frame['來源']=url
+                frames.append(frame)
+        except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+            notes.append(f'{url}：{type(exc).__name__}')
+    if not frames: raise ValueError('官方API與網頁均無可用資料：'+'；'.join(notes))
+    # The official web table wins for overlapping dates; both use identical reconciliation.
+    merged=pd.concat(frames).drop_duplicates('date',keep='last').sort_values('date').reset_index(drop=True)
+    merged.attrs['warnings']=notes
+    return merged
 
 def assessment(frame, result):
     if frame.empty: return '資料不足：官方API回傳範圍內沒有截止日以前的P/C資料。'
     dates=result['frame'].date.tail(3).tolist()
-    aligned=frame.set_index('date').reindex(dates)
+    aligned=frame[COLUMNS].set_index('date').reindex(dates)
     if aligned.isna().any().any():
         return f'資料不足：最新P/C為 {frame.date.iloc[-1]:%Y-%m-%d}；與現貨最近三個交易日未完整對齊，不納入當日交叉判讀。'
     vol=aligned['成交量P/C（%）']; oi=aligned['未平倉P/C（%）']

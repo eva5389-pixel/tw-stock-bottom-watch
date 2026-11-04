@@ -139,6 +139,8 @@ def load_market(asof):
         pc = load_putcall(asof)
         if pc.empty: raise ValueError('截止日前無資料')
         record['回傳日期'] = str(pc.date.iloc[-1].date())
+        record['來源'] = pc.iloc[-1]['來源']
+        errors.extend(pc.attrs.get('warnings', []))
     except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
         record['狀態'] = '未取得／格式不符'
         errors.append(f'Put/Call比：{type(exc).__name__}，未納入判讀。')

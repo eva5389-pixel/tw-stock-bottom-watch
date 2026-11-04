@@ -17,3 +17,10 @@ class PutCallTests(unittest.TestCase):
         df=parse([self.row(d) for d in ['20261030','20261102','20261103']],'2026-11-03')
         self.assertIn('不能抵銷',assessment(df,result))
         self.assertIn('資料不足',assessment(df.iloc[:-1],result))
+
+    def test_official_web_table(self):
+        from putcall import parse_page
+        html='<table><tr><td>2026/11/4</td><td>435,537</td><td>512,374</td><td>85.00</td><td>49,447</td><td>100,151</td><td>49.37</td></tr></table>'
+        df=parse_page(html,'2026-11-04')
+        self.assertEqual(df.iloc[0]['未平倉P/C（%）'],49.37)
+        self.assertTrue(parse_page(html,'2026-11-03').empty)
