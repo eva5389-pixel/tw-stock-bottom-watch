@@ -20,9 +20,9 @@ class FuturesTests(unittest.TestCase):
             with self.assertRaises(ValueError): thresholds(price,1,701000,701000,538000,25)
     def test_calculator_ui(self):
         app = AppTest.from_file(str(Path(__file__).resolve().parents[1]/'streamlit_app.py')).run()
-        app.number_input(key='tx_price').set_value(43376)
-        app.number_input(key='tx_original').set_value(701000)
-        app.number_input(key='tx_maintenance').set_value(538000)
+        app.text_input(key='tx_price').set_value('43376')
+        app.text_input(key='tx_original').set_value('701000')
+        app.text_input(key='tx_maintenance').set_value('538000')
         next(b for b in app.button if b.label=='計算還可下跌幾點／幾％').click().run()
         self.assertFalse(app.exception)
         self.assertEqual(app.dataframe[0].value.iloc[0]['估算期貨點位'],42561)
