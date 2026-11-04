@@ -4,28 +4,29 @@ import pandas as pd
 import streamlit as st
 from data import load_market
 from analysis import analyze, report
+from futures_ui import render_futures
 
 st.set_page_config(page_title='台股止跌觀察', page_icon=':material/monitoring:', layout='wide')
 st.title('台股止跌觀察')
 st.caption('先看價格是否守穩，再用市場廣度與籌碼交叉確認。證交所盤後資料｜上市市場')
 st.info('這是透明規則的觀察工具，不是預測勝率；不會因融資減少就判定落底。')
 
-@st.cache_data(ttl=3600, max_entries=12, show_spinner=False)
+@st.cache_data(ttl=300, max_entries=12, show_spinner=False)
 def cached_market(day):
     return load_market(day)
 
 today = datetime.now(ZoneInfo('Asia/Taipei')).date()
 with st.form('query'):
-    selected_text = st.text_input('觀察截止日期（YYYY-MM-DD）', value=(today-timedelta(days=1)).isoformat())
-    st.caption('預設昨天，避免今日行情與晚間融資尚未公布。休市日採此前最近交易日；首次載入約30–90秒。')
-    refresh = st.checkbox('重新向證交所取得資料（不使用一小時快取）')
+    selected_text = st.text_input('觀察截止日期（YYYY-MM-DD）', value=today.isoformat())
+    st.caption('可查當日已公布的盤後資料，非盤中即時判斷。融資等未公布時會標示資料不足；休市日採最近交易日。首次載入約30–90秒。')
+    refresh = st.checkbox('重新向證交所取得資料（不使用五分鐘快取）')
     submit = st.form_submit_button('更新止跌觀察', type='primary')
 try:
     selected = datetime.strptime(selected_text, '%Y-%m-%d').date()
-    if not today-timedelta(days=365) <= selected <= today-timedelta(days=1):
-        raise ValueError('請輸入最近一年內、昨天以前的日期')
+    if not today-timedelta(days=365) <= selected <= today:
+        raise ValueError('請輸入最近一年內、今天或以前的日期')
 except ValueError:
-    st.error('請以 YYYY-MM-DD 輸入最近一年內、昨天以前的日期。')
+    st.error('請以 YYYY-MM-DD 輸入最近一年內、今天或以前的日期。')
     st.stop()
 if submit:
     st.session_state.pop('market_bundle', None)
@@ -35,6 +36,7 @@ if submit:
             st.session_state.market_bundle = cached_market(selected.isoformat())
     except Exception as exc:
         st.error(f'無法完成更新：{exc}。請稍後重試；不會顯示模擬行情。')
+render_futures()
 bundle = st.session_state.get('market_bundle')
 if not bundle:
     st.write('點選「更新止跌觀察」，即可查看結論、每項依據、走勢圖與下載報告。')
@@ -48,6 +50,10 @@ except ValueError as exc:
     st.stop()
 df = result['frame']
 last, prev = df.iloc[-1], df.iloc[-2]
+if last.date.date() < selected:
+    st.warning(f'查詢截止 {selected}，但指數最新僅公布至 {last.date:%Y-%m-%d}；下方是該交易日結果，不能視為查詢當日已確認止跌。')
+elif result['available'] < 6:
+    st.warning('當日價格已取得，但部分籌碼尚未取得／公布；目前僅為不完整資料的觀察結果。')
 with st.container(border=True):
     st.subheader(result['label'])
     st.write(f"資料截至 **{last.date:%Y-%m-%d}**｜擷取時間：{bundle['fetched_at']}")
