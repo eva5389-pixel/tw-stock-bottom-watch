@@ -16,10 +16,17 @@ def cached_market(day):
 
 today = datetime.now(ZoneInfo('Asia/Taipei')).date()
 with st.form('query'):
-    selected = st.date_input('觀察截止日期', value=today-timedelta(days=1), min_value=today-timedelta(days=365), max_value=today-timedelta(days=1))
+    selected_text = st.text_input('觀察截止日期（YYYY-MM-DD）', value=(today-timedelta(days=1)).isoformat())
     st.caption('預設昨天，避免今日行情與晚間融資尚未公布。休市日採此前最近交易日；首次載入約30–90秒。')
     refresh = st.checkbox('重新向證交所取得資料（不使用一小時快取）')
     submit = st.form_submit_button('更新止跌觀察', type='primary')
+try:
+    selected = datetime.strptime(selected_text, '%Y-%m-%d').date()
+    if not today-timedelta(days=365) <= selected <= today-timedelta(days=1):
+        raise ValueError('請輸入最近一年內、昨天以前的日期')
+except ValueError:
+    st.error('請以 YYYY-MM-DD 輸入最近一年內、昨天以前的日期。')
+    st.stop()
 if submit:
     st.session_state.pop('market_bundle', None)
     try:
